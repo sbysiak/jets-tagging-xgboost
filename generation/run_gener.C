@@ -1,5 +1,5 @@
 /* * * 
-macro executing generation.C with following parameters:
+script executing generation.C with following parameters:
 	* nev           - number of events
 	* type          - 1 for gluon-gluon and 2 for quark-antiquark pair
 	* parton_en     - energy of quark or gluon in GeV
