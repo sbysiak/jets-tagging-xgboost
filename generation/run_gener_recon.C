@@ -12,7 +12,7 @@ Consider also using multirun_gener_recon.sh
 
 * * */
 
-void rungen_gener_recon(Int_t nev=300, Int_t type=1, Double_t parton_en=20., Int_t q_id=2, const char* longFileName=kTRUE){
+void run_gener_recon(Int_t nev=300, Int_t type=1, Double_t parton_en=20., Int_t q_id=2, const char* longFileName=kTRUE){
 
   // Simulation and reconstruction
   TStopwatch timer;

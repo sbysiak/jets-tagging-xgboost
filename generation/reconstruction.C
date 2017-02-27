@@ -54,13 +54,12 @@ Parameter 'fileNameParams' defines input files used as input.
 #include "AliMCParticle.h"
 //#include "AliJetCalTrkTrackKine.h"
 
-
 #endif
 
 
-void reconstruction(Int_t evNumber=3000, const char* fileNameParams="") 
-{
+void reconstruction(Int_t evNumber=3000, const char* fileNameParams="") {
 
+	// number of events for extended printing
 	Int_t nEvToPrint=0;
 
 
@@ -84,11 +83,8 @@ void reconstruction(Int_t evNumber=3000, const char* fileNameParams="")
 	//
 	AliFastJetHeaderV1 *header = new AliFastJetHeaderV1;
 	header->SetBGMode(0);
-	// header->SetRadius(0.4);
-	//Float_t jetRadius=0.2;//0.3//0.2//was 0.4//for Gustavo 0.3
 	header->SetRparam(jetRadius); 
-	//header->SetJetEtaMin(-0.9+jetRadius); // to be added the jet eta min
-	//header->SetJetEtaMax(0.9-jetRadius); // to be added the jet eta max
+
 	// no eta limits:
 	header->SetJetEtaMin(-1e10);
 	header->SetJetEtaMax(1e10); 
@@ -146,7 +142,6 @@ void reconstruction(Int_t evNumber=3000, const char* fileNameParams="")
 
 	Int_t pdgRange = 8000;
 	TH1F *pdgH = new TH1F("PDG", "Particles PDG (PID)", pdgRange, -pdgRange/2+0.5, pdgRange/2+0.5);
-
 	TH1F pt_pdgH[pdgRange];
 	const char* part_names[pdgRange];
 
@@ -307,6 +302,7 @@ void reconstruction(Int_t evNumber=3000, const char* fileNameParams="")
 			// key to fastjet being run -- filling JetFinderEvent
 			// also filling TClonesArrays, which are to written in tree 
 			new (evParticles[part-offset]) TParticle(*MPart);
+			new (evMCParticles[part-offset]) AliMCParticle(MPart);
 			JetFinderEvent.AddCalTrkTrackKine((AliMCParticle*)evMCParticles[part-offset],1,1);
 			counter3++;
 
@@ -337,10 +333,7 @@ void reconstruction(Int_t evNumber=3000, const char* fileNameParams="")
 		FastJet->SetCalTrkEvent(JetFinderEvent);
 		FastJet->ProcessEvent();
 
-
-
 		h17->Fill(aod->GetNJets());
-
 
 
 		for (Int_t iJet = 0; iJet < aod->GetNJets(); iJet++) { //loop over jets

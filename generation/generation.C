@@ -159,11 +159,6 @@ void generation(Int_t nev = 2000, Int_t type = 2, Double_t parton_e = 20., Int_t
   h1MCEvents_alice->GetXaxis()->SetTitle("multMC true in |eta|<0.8 && p_{T}>0.15");
   TH1D* h1MCEvents_All = new TH1D("h1MCEvents_All","h1MCEvents_All",3,0,3);
   h1MCEvents_All->GetXaxis()->SetTitle("multMC true");
-
-
-
-  using namespace Pythia8;
-
   
   gSystem->Load("liblhapdf.so");    
   gSystem->Load("libEGPythia6.so"); 
@@ -183,6 +178,8 @@ void generation(Int_t nev = 2000, Int_t type = 2, Double_t parton_e = 20., Int_t
   //
   //                    Ali Classes initialization
   //
+
+  using namespace Pythia8;
 
   //  RunLoader
   AliRunLoader* rl = AliRunLoader::Open(galiceFileName->Data(),"FASTRUN","recreate");
@@ -244,7 +241,6 @@ void generation(Int_t nev = 2000, Int_t type = 2, Double_t parton_e = 20., Int_t
 
     //  Generate event
     gener->Generate();
-
 
     //
     // edgars' part
