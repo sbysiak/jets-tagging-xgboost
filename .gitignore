@@ -1,0 +1,39 @@
+### C++ / ROOT ###
+
+*_C.d
+*_C.so
+*.o
+*.so
+
+# Executables
+*.exe
+*.out
+
+
+### PYTHON ###
+
+*.py[cod]
+
+# IPython Notebook
+.ipynb_checkpoints
+
+
+### OTHERS ###
+
+*.log
+*.sh~
+*.C~
+
+# graphical outputs
+*.png
+*.jpg
+*.pdf
+
+# local notes and text outputs
+*.txt
+
+# xgboost datasets
+*.buffer
+*.test
+*.train
+*.xgbin

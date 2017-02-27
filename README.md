@@ -11,3 +11,6 @@ under supervision of Jacek Otwinowski, defended at Faculty of Physics and Applie
 ## Build with
 
 ## Acknowledges
+
+<!--- line breaking is done with two spaces ---> 
+<!--- and obviously this is how to put comments ---> 
