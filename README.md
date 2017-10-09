@@ -104,3 +104,16 @@ will generate __1000__ events of __gluon--gluon__ pairs with _E/gluon_ = 150 GeV
    * svR - distance between primary and secondary vertices
    * svN - no. particles originated from secondary vertex
 
+
+## Performance
+Execution time of generation and reconstruction increases 
+improportionally to number of events. Couple examples of run times 
+on average laptop:
+  * no. events   : time
+  - 300 events   : 16 sec
+  - 1000 events  : 31 sec
+  - 3000 events  : 1 min 30 sec
+  - 10000 events : 7 min 40 sec
+  - 30000 events : 54 min
+
+In order to simulate larger numbers of events, consider merging with [hadd](https://root.cern.ch/root/HowtoMerge.html "ROOT: hadd") a couple of files, each containing fraction of desired no. events.
