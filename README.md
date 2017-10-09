@@ -39,7 +39,7 @@ Whole repository was developed with following versions of packages:
  ```
   
   
-
+---------------------------------------------------------------
 ## Getting started
 Any part of code written in (Ali)ROOT 
 (basically concerning generation and reconstruction) 
@@ -104,7 +104,7 @@ will generate __1000__ events of __gluon--gluon__ pairs with _E/gluon_ = 150 GeV
    * svR - distance between primary and secondary vertices
    * svN - no. particles originated from secondary vertex
 
-
+---------------------------------------------------------------
 ## Performance
 Execution time of generation and reconstruction increases 
 improportionally to number of events. Couple examples of run times 
