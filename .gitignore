@@ -1,46 +1,23 @@
-### C++ / ROOT ###
-
-*_C.d
-*_C.so
 *.o
 *.so
+*.lib
+*.pyc
+*~
+*.swp
+*_C.d
 
-# Executables
-*.exe
-*.out
-
-
-### PYTHON ###
-
-*.py[cod]
-
-# IPython Notebook
-.ipynb_checkpoints
-
-
-### OTHERS ###
+*.tar
+*.tgz
 
 *.log
-*.sh~
-*.C~
-
-# graphical outputs
+*.pdf
 *.png
 *.jpg
-*.pdf
+*.eps
 
-# local notes and text outputs
+*.root
+*.copy
 *.txt
+*.tmp
 
-# xgboost datasets
-*.buffer
-*.test
-*.train
-*.xgbin
-
-# directories
-ARCHIVE/*
-torm/*
-plots_drawers/*
-XGBOOST/*
-examples_rubbish/*
+INFO.*
