@@ -586,6 +586,13 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
               motherp = stack->Particle(motherp->GetFirstMother());
               Int_t code = abs(motherp->GetPdgCode());
 
+              
+              if (  ! TDatabasePDG::Instance()->GetParticle(code) ){  // segmentation for part. XXX(e.g. 4124, 14122)->Charm()
+                  printf("\n\n\n\nW A R N I N G: XXX particle detected \n\n\n\n");
+                  continue;
+              }
+              //else{ cout<<"$ "<< TDatabasePDG::Instance()->GetParticle(code) <<endl;} 
+
               Bool_t charm = (motherp->Charm() != 0  ||(code>400 && code<500));
               Bool_t beauty = (motherp->Beauty() != 0 || (code>500 && code<600));
               if (charm || beauty){
@@ -608,10 +615,12 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           }
           tagExp = max(tagExp, tagExpTmp); 
 
-          // print report for jet made from particles printed so far, it's updated after every particle in jet
-          printf("\n\n------- true first=%d  true last=%d  exp=%d", tagTrueFirst, tagTrueLast, tagExp);
-          printf("\n------c: true first=%d  true last=%d  exp=%d", tagTrueFirstC, tagTrueLastC, tagExpC);
-          printf("\n------b: true first=%d  true last=%d  exp=%d", tagTrueFirstB, tagTrueLastB, tagExpB);
+          if (iJetPart+1 == jet->GetRefTracks()->GetEntriesFast()){
+              // print report for jet      //made from particles printed so far, it's updated after every particle in jet
+		      printf("\n\n------- true first=%d  true last=%d  exp=%d", tagTrueFirst, tagTrueLast, tagExp);
+		      printf("\n------c: true first=%d  true last=%d  exp=%d", tagTrueFirstC, tagTrueLastC, tagExpC);
+		      printf("\n------b: true first=%d  true last=%d  exp=%d", tagTrueFirstB, tagTrueLastB, tagExpB);
+          }
 
       }
 
