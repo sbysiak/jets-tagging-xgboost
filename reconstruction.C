@@ -212,7 +212,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
   // tree initialization
   TString* treeFileName = new TString(pathToFile);
-  *treeFileName += "jetsTree.root";
+  *treeFileName += "/jetsTree.root";
 
 
   TFile* treeFile = new TFile(treeFileName->Data(),"RECREATE");
@@ -682,7 +682,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 //Create a canvas, set the view range, show histograms
 
   TString* histFileName = new TString(pathToFile); 
-  *histFileName += "histos.root";
+  *histFileName += "/histos.root";
 
   TFile* histFile = new TFile(histFileName->Data(),"RECREATE");
   histFile->cd();
