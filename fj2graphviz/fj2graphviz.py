@@ -38,6 +38,8 @@ import sys
 if len(sys.argv) > 1: input_fname = sys.argv[1]
 else: sys.exit('input filename not given!') 
 
+if not os.path.exists('fj2graphviz/outputs/'): os.system('mkdir outputs')
+
 with open(input_fname) as f_in, open('fj2graphviz/outputs/'+input_fname.replace('.txt', '.dot'), 'w') as f_out:
     head = 'digraph G {\n\nrankdir=LR;\nsize="20"\nminsep="1"\n\n'
     f_out.write(head)
