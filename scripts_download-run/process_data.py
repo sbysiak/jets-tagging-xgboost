@@ -23,6 +23,7 @@ def run_rm(path):
     #rm $(ls -I "Kinematics.root" -I "galice.root" -I "jetsTree.root" -I "histos.root" -I "*.zip") # -I file_to_ignore
 
     #save_lst = ['jetsTree.root', 'histos.root', '*.zip', '*.C']
+    #save_lst = ['jetsTree.root', 'histos.root', '*.C', 'Kinematics.root', 'galice.root']
     save_lst = ['jetsTree.root', 'histos.root', '*.C']
     # create empty file, cause without it LS doesnt ignore files after -I
     cmd_rm = '(cd '+path+'; touch file-torm; rm $(ls '
@@ -46,6 +47,10 @@ def process_data(main_dir='DATA/sim/2017/LHC17f8g/1/255618/001', n_events=200):
 
         elif 'aod_archive.root' in files or 'QA_archive.root' in files: 
             print('\tpd: only aod_archive and QA_archive -- removing') 
+            run_rm(path)
+
+        elif 'Kinematics.root' in files and 'galice.root' in files:
+            run_recon(path, n_events)
             run_rm(path)
                 
 

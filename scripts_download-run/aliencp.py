@@ -37,6 +37,9 @@ def aliencp(main_source_dir='/alice/sim/2017/LHC17f8g/1/255618/001',
         and os.path.isfile(target+'/histos.root')):
             print('\tacp: jetsTree and histos already in dir')
             pass
+        elif (os.path.isfile(target+'/Kinematics.root') 
+        and os.path.isfile(target+'/galice.root')):
+            print('\tacp: Kinematics and galice already in dir')
         else:
             print('EXEC: acp: $ '+cmd_cp+' '+source_target)
             # call alien_cp !!!
