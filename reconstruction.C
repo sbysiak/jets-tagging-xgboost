@@ -146,7 +146,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
   // Create some histograms
   TH1F *thetaH      = new TH1F("thetaH","Theta distribution",180,0,180);
-  TH1F *phiH        = new TH1F("phiH","Phi distribution" ,180,-180,180);
+  TH1F *phiH        = new TH1F("phiH","Phi distribution" ,90,-180,180);
   TH1F *etaH        = new TH1F("etaH","Pseudorapidity",120,-12,12);
   TH1F *yH          = new TH1F("yH","Rapidity distribution",120,-12,12);
   TH1F *eH          = new TH1F("eH","Energy distribution",100,0,220);
@@ -159,6 +159,10 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   TH1F *radMomH     = new TH1F("radMomH", "radial moment", 200, 0., 1.);
   TH1F *radMom_riH  = new TH1F("radMom_riH", "radial moment r_is", 100, 0., 1.); // upLim must be > jetRadius | 
   TH1F* angularH    = new TH1F("angularH", "jet angularities", 100, 0.,200. );
+
+  TH1I *isPhysPrimH = new TH1I("isPhysPrimH", "isPhysicalPrimary in all particles from kinematic tree", 5, -0.5, 4.5);
+  TH1I *isPhysPrimFJH = new TH1I("isPhysPrimFJH", "isPhysicalPrimary in FJ input", 5, -0.5, 4.5);
+  TH1I *eMotherPdgH = new TH1I("eMotherPdgH", "pdg of electron's mother (jet electrons only)", 2000, -1000,1000);
 
   Int_t bins1[2] = {100000};
   Double_t xmin1[2] = {0.};
@@ -226,6 +230,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
     Int_t svN;          // number of sec vtx found in jet, with sigma_r restriction
     Int_t mult;          // jet multiplicity aka counts
     Int_t eIn;          // flag if e- in jet
+    Int_t eMotherPdg;
     Int_t tagExp;
     Int_t tagTrueLast;
     Int_t tagTrueFirst;
@@ -254,7 +259,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   tree->Branch("jetsBranch", "AliAODJet", &jet);  
   tree->Branch("evParticlesBranch", &eventParticles);
   tree->Branch("jetParticlesBranch", &jetParticles);
-  tree->Branch("jetObservablesBranch",&jetObserv,"ptRel/D:radMom:angular:svR:svN/I:mult:eIn:tagExp:tagTrueLast:tagTrueFirst:tagExpC:tagTrueLastC:tagTrueFirstC:tagExpB:tagTrueLastB:tagTrueFirstB");
+  tree->Branch("jetObservablesBranch",&jetObserv,"ptRel/D:radMom:angular:svR:svN/I:mult:eIn:eMotherPdg:tagExp:tagTrueLast:tagTrueFirst:tagExpC:tagTrueLastC:tagTrueFirstC:tagExpB:tagTrueLastB:tagTrueFirstB");
 
   //
   //                    Events loop 
@@ -285,14 +290,16 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
     Int_t npart = stack->GetNprimary();
     Int_t offset = 0;
+    printf("GetNprimary() = %d\n", npart);
     for (Int_t part=0; part<npart; part++) {
         counter1++;
+        isPhysPrimH->Fill(stack->IsPhysicalPrimary(part));
+
         TParticle *MPart = stack->Particle(part);
         Int_t mpart    = MPart->GetPdgCode();
         Int_t child1   = MPart->GetFirstDaughter();
         Int_t child2   = MPart->GetLastDaughter();  
         Int_t mother   = MPart->GetFirstMother();
-
         const char* pdg_name = MPart->GetName();
 
         Float_t Pt    = MPart->Pt();
@@ -304,29 +311,34 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         Float_t theta   = MPart->Theta();
         Float_t phi     = MPart->Phi()-TMath::Pi();
         Float_t eta     = -TMath::Log(TMath::Tan(theta/2.));
+        //Float_t eta = MPart->Eta();
         Float_t y     = 0.5*TMath::Log((E+Pz+1.e-13)/(E-Pz+1.e-13));
         
-        if (child1 >= 0) { //cout<<"\nWARNING, \'continue\' in loop due to child1 >= 0 \tit's "<<pdg_name<<endl;
+
+        if ((mpart < 6 && mpart >=-6) || mpart == 21 || mpart == 2101 || mpart == 2103 || mpart == 2201 || mpart == 2203) { //cout<<"\nWARNING, \'continue\' in loop due to q, q_bar or g in event \tit's "<<pdg_name<<endl;
           offset++;
           counter2++;
           continue;
         }
-        else if ((mpart < 6 && mpart >=-6) || mpart == 21) { //cout<<"\nWARNING, \'continue\' in loop due to q, q_bar or g in event \tit's "<<pdg_name<<endl;
+        if (! stack->IsPhysicalPrimary(part)) {
+          //printf("WARNING: particle is NOT physical primary (%d), it's: id=%d, %s(%d)\n", stack->IsPhysicalPrimary(part), part, pdg_name, mpart);
           offset++;
-          counter2++;
           continue;
         }
 
-        thetaH->Fill(theta*180./TMath::Pi());
-        phiH->Fill(phi*180./TMath::Pi());
-        etaH->Fill(eta); 
-        eetaH->Fill(eta,E); 
-        yH->Fill(y);
-        eH->Fill(E); 
-        ptH->Fill(pT);
 
+
+//        if (child1 >= 0) { 
+//          //cout<<"\nWARNING, \'continue\' in loop due to child1 >= 0 \tit's "<<pdg_name<<endl;
+//          offset++;
+//          counter2++;
+//          continue;
+//        }
+
+
+        
         if (mpart < -pdgRange/2 || mpart > pdgRange/2) printf("WARNING: particle pdg=%d out of range!",mpart);
-        pdgH->Fill(mpart);
+        else pdgH->Fill(mpart);
 
         (pt_pdgH[mpart+pdgRange/2]).Fill(Pt);
         part_names[mpart+pdgRange/2] = pdg_name;
@@ -336,15 +348,32 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
       // see WARN. in type 1 or 2 (pair of q or g)
       if (pT==0.0) {
         cout<<"WARNING: ghost-candidate: pt="<<pT<<", eta="<<eta<<", theta="<<theta<<", type="<<pdg_name<<endl;
-        //continue;
+        offset++;
+        continue;
       }
+
+     
+      Float_t charge = MPart->GetPDG()->Charge();  
+      if (charge == 0){
+          offset++;
+          continue;
+      }
+
+    etaH->Fill(eta); 
+    thetaH->Fill(theta*180./TMath::Pi());
+    phiH->Fill(phi*180./TMath::Pi());
+    yH->Fill(y);
+    eetaH->Fill(eta,E); 
+    eH->Fill(E); 
+    ptH->Fill(pT);
+    isPhysPrimFJH->Fill(stack->IsPhysicalPrimary(part));
 
     
       // key to fastjet being run -- filling JetFinderEvent
       // also filling TClonesArrays, which are to written in tree 
       new (evParticles[part-offset]) TParticle(*MPart);
       new (evMCParticles[part-offset]) AliMCParticle(MPart);
-      JetFinderEvent.AddCalTrkTrackKine((AliMCParticle*)evMCParticles[part-offset],1,1);
+      JetFinderEvent.AddCalTrkTrackKine( (AliMCParticle*) evMCParticles[part-offset], 1, 1 );
       counter3++;
 
     } // primary loop
@@ -387,6 +416,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
       Int_t jetPartCounter = 0;
     
       Int_t eInJet = 0;
+      Int_t eMother = 999;
       Double_t radialMoment = 0.;
       Double_t angularity = 0.;    
       Double_t ptRelMax = -1.;
@@ -414,6 +444,8 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
             new (jParticles[jetPartCounter]) TParticle(*stackp);
             // if e-
             if (stackp->GetPdgCode() == 11) {
+              eMother = stack->Particle(stackp->GetFirstMother())->GetPdgCode();
+              eMotherPdgH->Fill(eMother);
               eInJet++;
               TVector3 eleP(stackp->Px(), stackp->Py(), stackp->Pz());
               Double_t alfa = jet->MomentumVector()->Angle(eleP);
@@ -629,6 +661,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
       // observables struct filling
       jetObserv.mult    = jet->GetRefTracks()->GetEntriesFast();
       jetObserv.eIn      = eInJet;
+      jetObserv.eMotherPdg = eMother;
       jetObserv.svN      = Nsv;
       jetObserv.svR      = RsvMax;
       jetObserv.ptRel    = ptRelMax;
@@ -645,8 +678,6 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
       jetObserv.tagTrueLastB = tagTrueLastB;
       jetObserv.tagExpB = tagExpB;
       
-
-
 
 
       if (iJet != 0) {
@@ -706,16 +737,16 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
     c1->cd(3); yH->Draw();
     c1->cd(4); eH->Draw();
     c1->Write();
-
+*/
 
   TCanvas *c2 = new TCanvas("c2","Canvas 2",400,10,600,700);
     c2->Divide(2,2);
     c2->cd(1); phiH->Draw();
-    c2->cd(2); thetaH->Draw();
-    c2->cd(3); eetaH->Draw();
+    c2->cd(2); yH->Draw();
+    c2->cd(3); thetaH->Draw();
     c2->cd(4); etaH->Draw();
     c2->Write();
- 
+/*
 
   TCanvas *c3 = new TCanvas("c3","Canvas 3 - PDG",400,10,600,700);
     pdgH->Draw();
@@ -821,6 +852,10 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   h28->Write();
 
   hJetEtaPhiAll->Write();
+
+  eMotherPdgH->Write();
+  isPhysPrimH->Write();
+  isPhysPrimFJH->Write();
 
 }
 
