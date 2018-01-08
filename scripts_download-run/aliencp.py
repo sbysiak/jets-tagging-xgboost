@@ -26,11 +26,12 @@ def aliencp(main_source_dir='/alice/sim/2017/LHC17f8g/1/255618/001',
         if not os.path.isdir(target): 
             subprocess.call(['mkdir', '--parents', target])
 
-        # temporary !!! only for stopped jobs. Noramally indented below
-        source_target = 'alien:///'+main_source_dir+'/*.zip '+target
-        if (os.path.isfile(target+'/root_archive.zip') 
-        and os.path.isfile(target+'/aod_archive.zip')
-        and os.path.isfile(target+'/QA_archive.zip')):
+        #source_target = 'alien:///'+main_source_dir+'/*.zip '+target
+        #if (os.path.isfile(target+'/root_archive.zip') 
+        #and os.path.isfile(target+'/aod_archive.zip')
+        #and os.path.isfile(target+'/QA_archive.zip')):
+        source_target = 'alien:///'+main_source_dir+'/root_archive.zip '+target
+        if (os.path.isfile(target+'/root_archive.zip')): 
             print('\tacp: all zip files already in dir')
             pass
         elif (os.path.isfile(target+'/jetsTree.root') 

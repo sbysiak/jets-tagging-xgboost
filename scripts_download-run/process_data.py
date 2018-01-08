@@ -23,9 +23,9 @@ def run_rm(path):
     #rm $(ls -I "Kinematics.root" -I "galice.root" -I "jetsTree.root" -I "histos.root" -I "*.zip") # -I file_to_ignore
 
     #save_lst = ['jetsTree.root', 'histos.root', '*.zip', '*.C']
-    #save_lst = ['jetsTree.root', 'histos.root', '*.C', 'Kinematics.root', 'galice.root']
-    save_lst = ['jetsTree.root', 'histos.root', '*.C']
-    # create empty file, cause without it LS doesnt ignore files after -I
+    save_lst = ['jetsTree.root', 'histos.root', '*.C', 'Kinematics.root', 'galice.root']
+    #save_lst = ['jetsTree.root', 'histos.root', '*.C']
+    # create empty file, cause without it 'ls' doesnt ignore files after -I
     cmd_rm = '(cd '+path+'; touch file-torm; rm $(ls '
     for file in save_lst: cmd_rm += ' -I "{}"'.format(file)
     cmd_rm += ') )'
@@ -40,7 +40,11 @@ def process_data(main_dir='DATA/sim/2017/LHC17f8g/1/255618/001', n_events=200):
             run_rm(path)
             continue
 
-        if 'root_archive.zip' in files:
+        if 'Kinematics.root' in files and 'galice.root' in files:
+            run_recon(path, n_events)
+            run_rm(path)
+
+        elif 'root_archive.zip' in files:
             run_unzip(path)
             run_recon(path, n_events)
             run_rm(path)
@@ -49,9 +53,6 @@ def process_data(main_dir='DATA/sim/2017/LHC17f8g/1/255618/001', n_events=200):
             print('\tpd: only aod_archive and QA_archive -- removing') 
             run_rm(path)
 
-        elif 'Kinematics.root' in files and 'galice.root' in files:
-            run_recon(path, n_events)
-            run_rm(path)
                 
 
 if __name__ == '__main__':
