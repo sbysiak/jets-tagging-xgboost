@@ -271,7 +271,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
   //TDatabasePDG* base = new TDatabasePDG();
   for (Int_t nev=0; nev < evNumber; nev++) {
-    cout<<"\n\n============ EVENT "<<nev<<" ==================";
+    //cout<<"\n\n============ EVENT "<<nev<<" ==================";
     if(!(nev%100)) cout<<"\n\n============ EVENT "<<nev<<" ==================";
     rl->GetEvent(nev);
     AliStack* stack = rl->Stack();
@@ -290,7 +290,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
     Int_t npart = stack->GetNprimary();
     Int_t offset = 0;
-    printf("GetNprimary() = %d\n", npart);
+    //printf("GetNprimary() = %d\n", npart);
     for (Int_t part=0; part<npart; part++) {
         counter1++;
         isPhysPrimH->Fill(stack->IsPhysicalPrimary(part));
@@ -327,14 +327,12 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         }
 
 
-
 //        if (child1 >= 0) { 
 //          //cout<<"\nWARNING, \'continue\' in loop due to child1 >= 0 \tit's "<<pdg_name<<endl;
 //          offset++;
 //          counter2++;
 //          continue;
 //        }
-
 
         
         if (mpart < -pdgRange/2 || mpart > pdgRange/2) printf("WARNING: particle pdg=%d out of range!",mpart);
@@ -347,26 +345,26 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
       // ghosts i.e. have momentum exactly in z direction, 
       // see WARN. in type 1 or 2 (pair of q or g)
       if (pT==0.0) {
-        cout<<"WARNING: ghost-candidate: pt="<<pT<<", eta="<<eta<<", theta="<<theta<<", type="<<pdg_name<<endl;
+        //cout<<"WARNING: ghost-candidate: pt="<<pT<<", eta="<<eta<<", theta="<<theta<<", type="<<pdg_name<<endl;
         offset++;
         continue;
       }
 
      
-      Float_t charge = MPart->GetPDG()->Charge();  
-      if (charge == 0){
-          offset++;
-          continue;
-      }
+      //Float_t charge = MPart->GetPDG()->Charge();  
+      //if (charge == 0){
+      //    offset++;
+      //    continue;
+      //}
 
-    etaH->Fill(eta); 
-    thetaH->Fill(theta*180./TMath::Pi());
-    phiH->Fill(phi*180./TMath::Pi());
-    yH->Fill(y);
-    eetaH->Fill(eta,E); 
-    eH->Fill(E); 
-    ptH->Fill(pT);
-    isPhysPrimFJH->Fill(stack->IsPhysicalPrimary(part));
+      etaH->Fill(eta); 
+      thetaH->Fill(theta*180./TMath::Pi());
+      phiH->Fill(phi*180./TMath::Pi());
+      yH->Fill(y);
+      eetaH->Fill(eta,E); 
+      eH->Fill(E); 
+      ptH->Fill(pT);
+      isPhysPrimFJH->Fill(stack->IsPhysicalPrimary(part));
 
     
       // key to fastjet being run -- filling JetFinderEvent
@@ -395,7 +393,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
 
     for (Int_t iJet = 0; iJet < aod->GetNJets(); iJet++) { //loop over jets
-      printf("\n\n\t\t# JET nr %d\n", iJet);
+      //printf("\n\n\t\t# JET nr %d\n", iJet);
 
       jet = aod->GetJet(iJet);
       h7->Fill(jet->Pt(),jet->EffectiveAreaCharged());
@@ -559,10 +557,10 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
       // loop over jet particles for tagging
       for(int iJetPart=0; iJetPart < jet->GetRefTracks()->GetEntriesFast(); iJetPart++){
-          printf("\n %d.", iJetPart);
+          //printf("\n %d.", iJetPart);
 
           TParticle* jetp = ((AliMCParticle*)jet->GetRefTracks()->At(iJetPart))->Particle();
-          print_ancestors(jetp, stack);      
+          //print_ancestors(jetp, stack);      
           TParticle* motherp = jetp;
 
           Int_t tagTrueFirstTmp = 0;
@@ -574,7 +572,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           while(kTRUE){
             motherp = stack->Particle(motherp->GetFirstMother());
             if (motherp->GetFirstMother() == -1){ 
-                printf("\n\t true first: %s (%d)", motherp->GetName(), motherp->GetPdgCode());
+                //printf("\n\t true first: %s (%d)", motherp->GetName(), motherp->GetPdgCode());
                 if (abs(motherp->GetPdgCode()) == 4) tagTrueFirstC = 1;
                 if (abs(motherp->GetPdgCode()) == 5) tagTrueFirstB = 1;
 
@@ -593,7 +591,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           while(kTRUE){
             motherp = stack->Particle(motherp->GetFirstMother());
             if (abs(motherp->GetPdgCode()) < 7 || motherp->GetPdgCode() == 21){ 
-                printf("\n\t true last: %s (%d)", motherp->GetName(), motherp->GetPdgCode());  
+                //printf("\n\t true last: %s (%d)", motherp->GetName(), motherp->GetPdgCode());  
 
                 if (abs(motherp->GetPdgCode()) == 4) tagTrueLastC = 1;
                 if (abs(motherp->GetPdgCode()) == 5) tagTrueLastB = 1;
@@ -605,7 +603,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
                 break;
             }
             if (motherp->GetFirstMother() == -1){ 
-                printf("\n\t true last (end): %s (%d)", motherp->GetName(), motherp->GetPdgCode());
+                //printf("\n\t true last (end): %s (%d)", motherp->GetName(), motherp->GetPdgCode());
                 tagTrueLastTmp = -1;
                 break;
             }
@@ -620,7 +618,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
               
               if (  ! TDatabasePDG::Instance()->GetParticle(code) ){  // segmentation for part. XXX(e.g. 4124, 14122)->Charm()
-                  printf("\n\n\n\nW A R N I N G: XXX particle detected \n\n\n\n");
+                  printf("\n\nW A R N I N G: XXX particle detected \n\n");
                   continue;
               }
               //else{ cout<<"$ "<< TDatabasePDG::Instance()->GetParticle(code) <<endl;} 
@@ -628,7 +626,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
               Bool_t charm = (motherp->Charm() != 0  ||(code>400 && code<500));
               Bool_t beauty = (motherp->Beauty() != 0 || (code>500 && code<600));
               if (charm || beauty){
-                printf("\n\tEXP %s (%d) %d", motherp->GetName(), motherp->GetPdgCode(), motherp->GetPDG()->Stable());
+                //printf("\n\tEXP %s (%d) %d", motherp->GetName(), motherp->GetPdgCode(), motherp->GetPDG()->Stable());
 
                 if (charm)  tagExpC = 1;
                 if (beauty) tagExpB = 1;
@@ -640,7 +638,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
                 break;
               }
               if (motherp->GetFirstMother() == -1){ 
-                printf("\n\t EXP (end): light"); 
+                //printf("\n\t EXP (end): light"); 
                 tagExpTmp = -1; 
                 break;
               }
@@ -649,9 +647,9 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
           if (iJetPart+1 == jet->GetRefTracks()->GetEntriesFast()){
               // print report for jet      //made from particles printed so far, it's updated after every particle in jet
-		      printf("\n\n------- true first=%d  true last=%d  exp=%d", tagTrueFirst, tagTrueLast, tagExp);
-		      printf("\n------c: true first=%d  true last=%d  exp=%d", tagTrueFirstC, tagTrueLastC, tagExpC);
-		      printf("\n------b: true first=%d  true last=%d  exp=%d", tagTrueFirstB, tagTrueLastB, tagExpB);
+//		      printf("\n\n------- true first=%d  true last=%d  exp=%d", tagTrueFirst, tagTrueLast, tagExp);
+//		      printf("\n------c: true first=%d  true last=%d  exp=%d", tagTrueFirstC, tagTrueLastC, tagExpC);
+//		      printf("\n------b: true first=%d  true last=%d  exp=%d", tagTrueFirstB, tagTrueLastB, tagExpB);
           }
 
       }
@@ -737,7 +735,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
     c1->cd(3); yH->Draw();
     c1->cd(4); eH->Draw();
     c1->Write();
-*/
+
 
   TCanvas *c2 = new TCanvas("c2","Canvas 2",400,10,600,700);
     c2->Divide(2,2);
@@ -746,7 +744,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
     c2->cd(3); thetaH->Draw();
     c2->cd(4); etaH->Draw();
     c2->Write();
-/*
+
 
   TCanvas *c3 = new TCanvas("c3","Canvas 3 - PDG",400,10,600,700);
     pdgH->Draw();
