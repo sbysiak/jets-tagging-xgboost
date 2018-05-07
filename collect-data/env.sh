@@ -1,0 +1,11 @@
+export TEST_FILES_NO='999999'
+export DEBUG_LEVEL='1'
+export OUTPUT_FILES='EventStat_temp.root, AnalysisResults.root'
+export PP='false'
+export ADDTASK_NEEDS_ALIEN='0'
+export TEST_ONLY_FULL_TRAIN='1'
+export FILE_PATTERN='AliAOD.root'
+export AOD='1'
+
+#export FRIEND_CHAIN_NAMES='AliAOD.VertexingHF.root'
+#export FRIEND_CHAIN_LIBRARIES='libCORRFW.so,libPWGflowBase.so,libPWGflowTasks.so,libPWGHFbase.so,libPWGHFvertexingHF.so'
