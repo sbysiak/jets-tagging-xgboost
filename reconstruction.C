@@ -1,8 +1,8 @@
-/* * * 
+/* * *
 
 Variation of standard reconstruction.C
 with additional jet tagging based on:
-- presence of charmed/beauty hadron in jet 
+- presence of charmed/beauty hadron in jet
   (refered to as Exp - experimental method)
 - last parton before hadronization (TrueLast)
 - very original parton (TrueFirst)
@@ -15,8 +15,8 @@ usually abs(PDG codes) are used in resulting tree, with 2 exceptions:
 Macro can be run with:
 $ aliroot -l -q 'run_recon.C(25,"DATA/LHC17f8g_20_255618_090/")'
 
-where: 
-- 25 is no. events 
+where:
+- 25 is no. events
 - "DATA/LHC17f8g_20_255618_090/" is the relative path to directory containing Kinematics.root and galice.root
 
 * * */
@@ -95,8 +95,11 @@ void print_children(TParticle* part0, int stack_pid, AliStack* stack, int iGener
 }
 
 
+enum jetsCharge { chargedJets, fullJets };
 
-void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
+void reconstruction(Int_t evNumber=200,
+                    const char* pathToFile="",
+                    const jetsCharge chargeOfJets = jetsCharge(chargedJets)) {
 
   TString* galiceFileName = new TString(pathToFile);
   *galiceFileName += "/galice.root";
@@ -106,7 +109,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   AliRunLoader* rl = AliRunLoader::Open(galiceFileName->Data());
 
   TDatabasePDG* PDGbase = new TDatabasePDG();
-    
+
 
   // main parameter for anti-kt algorithm
   Float_t jetRadius = 0.4;
@@ -117,11 +120,11 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   //
   AliFastJetHeaderV1 *header = new AliFastJetHeaderV1;
   header->SetBGMode(0);
-  header->SetRparam(jetRadius); 
+  header->SetRparam(jetRadius);
 
   // no eta limits:
   header->SetJetEtaMin(-1e10);
-  header->SetJetEtaMax(1e10); 
+  header->SetJetEtaMax(1e10);
   header->SetPtMin(5.); //5. is default
 
   // set reconstruction algorithm
@@ -157,7 +160,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   TH1F *ptRelH      = new TH1F("ptRelH","relative electron momentum", 100,0.,5.);
   TH1F *eJetAlfaH   = new TH1F("eJetAlfaH", "angle electron - jet", 1000,0.,180.);
   TH1F *radMomH     = new TH1F("radMomH", "radial moment", 200, 0., 1.);
-  TH1F *radMom_riH  = new TH1F("radMom_riH", "radial moment r_is", 100, 0., 1.); // upLim must be > jetRadius | 
+  TH1F *radMom_riH  = new TH1F("radMom_riH", "radial moment r_is", 100, 0., 1.); // upLim must be > jetRadius |
   TH1F* angularH    = new TH1F("angularH", "jet angularities", 100, 0.,200. );
 
   TH1I *isPhysPrimH = new TH1I("isPhysPrimH", "isPhysicalPrimary in all particles from kinematic tree", 5, -0.5, 4.5);
@@ -168,7 +171,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   Double_t xmin1[2] = {0.};
   Double_t xmax1[2] = {5.};
 
-  THnSparseD* vrtxHsparse = new THnSparseD("vrtxHsparse","particle vertex X abs sparse",1, bins1, xmin1, xmax1); 
+  THnSparseD* vrtxHsparse = new THnSparseD("vrtxHsparse","particle vertex X abs sparse",1, bins1, xmin1, xmax1);
 
   TH1D* NsecVertices1H = new TH1D("NsecVertices1H", "number of vertices found in jet with at least 1 particles", 20, -0.5, 19.5);
   TH1D* NsecVertices2H = new TH1D("NsecVertices2H", "number of vertices found in jet with at least 2 particles", 20, -0.5, 19.5);
@@ -212,7 +215,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
 
   rl->LoadKinematics();
-  rl->LoadHeader(); 
+  rl->LoadHeader();
 
   // tree initialization
   TString* treeFileName = new TString(pathToFile);
@@ -256,13 +259,13 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   TClonesArray &evMCParticles = *eventMCParticles;
 
   TTree* tree = new TTree("jetsTree","jets tree's title", 0);
-  tree->Branch("jetsBranch", "AliAODJet", &jet);  
+  tree->Branch("jetsBranch", "AliAODJet", &jet);
   tree->Branch("evParticlesBranch", &eventParticles);
   tree->Branch("jetParticlesBranch", &jetParticles);
   tree->Branch("jetObservablesBranch",&jetObserv,"ptRel/D:radMom:angular:svR:svN/I:mult:eIn:eMotherPdg:tagExp:tagTrueLast:tagTrueFirst:tagExpC:tagTrueLastC:tagTrueFirstC:tagExpB:tagTrueLastB:tagTrueFirstB");
 
   //
-  //                    Events loop 
+  //                    Events loop
   //
 
   Int_t counter1 = 0;
@@ -285,7 +288,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
 
     //
-    // Loop over primary particles 
+    // Loop over primary particles
     //
 
     Int_t npart = stack->GetNprimary();
@@ -298,7 +301,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         TParticle *MPart = stack->Particle(part);
         Int_t mpart    = MPart->GetPdgCode();
         Int_t child1   = MPart->GetFirstDaughter();
-        Int_t child2   = MPart->GetLastDaughter();  
+        Int_t child2   = MPart->GetLastDaughter();
         Int_t mother   = MPart->GetFirstMother();
         const char* pdg_name = MPart->GetName();
 
@@ -313,7 +316,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         Float_t eta     = -TMath::Log(TMath::Tan(theta/2.));
         //Float_t eta = MPart->Eta();
         Float_t y     = 0.5*TMath::Log((E+Pz+1.e-13)/(E-Pz+1.e-13));
-        
+
 
         if ((mpart < 6 && mpart >=-6) || mpart == 21 || mpart == 2101 || mpart == 2103 || mpart == 2201 || mpart == 2203) { //cout<<"\nWARNING, \'continue\' in loop due to q, q_bar or g in event \tit's "<<pdg_name<<endl;
           offset++;
@@ -327,14 +330,14 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         }
 
 
-//        if (child1 >= 0) { 
+//        if (child1 >= 0) {
 //          //cout<<"\nWARNING, \'continue\' in loop due to child1 >= 0 \tit's "<<pdg_name<<endl;
 //          offset++;
 //          counter2++;
 //          continue;
 //        }
 
-        
+
         if (mpart < -pdgRange/2 || mpart > pdgRange/2) printf("WARNING: particle pdg=%d out of range!",mpart);
         else pdgH->Fill(mpart);
 
@@ -342,7 +345,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         part_names[mpart+pdgRange/2] = pdg_name;
 
 
-      // ghosts i.e. have momentum exactly in z direction, 
+      // ghosts i.e. have momentum exactly in z direction,
       // see WARN. in type 1 or 2 (pair of q or g)
       if (pT==0.0) {
         //cout<<"WARNING: ghost-candidate: pt="<<pT<<", eta="<<eta<<", theta="<<theta<<", type="<<pdg_name<<endl;
@@ -350,25 +353,25 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
         continue;
       }
 
-     
-      //Float_t charge = MPart->GetPDG()->Charge();  
-      //if (charge == 0){
-      //    offset++;
-      //    continue;
-      //}
 
-      etaH->Fill(eta); 
+      Float_t charge = MPart->GetPDG()->Charge();
+      if (charge == 0 && chargeOfJets == jetsCharge(chargedJets)){
+         offset++;
+         continue;
+      }
+
+      etaH->Fill(eta);
       thetaH->Fill(theta*180./TMath::Pi());
       phiH->Fill(phi*180./TMath::Pi());
       yH->Fill(y);
-      eetaH->Fill(eta,E); 
-      eH->Fill(E); 
+      eetaH->Fill(eta,E);
+      eH->Fill(E);
       ptH->Fill(pT);
       isPhysPrimFJH->Fill(stack->IsPhysicalPrimary(part));
 
-    
+
       // key to fastjet being run -- filling JetFinderEvent
-      // also filling TClonesArrays, which are to written in tree 
+      // also filling TClonesArrays, which are to written in tree
       new (evParticles[part-offset]) TParticle(*MPart);
       new (evMCParticles[part-offset]) AliMCParticle(MPart);
       JetFinderEvent.AddCalTrkTrackKine( (AliMCParticle*) evMCParticles[part-offset], 1, 1 );
@@ -402,21 +405,21 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
       jParticles.Clear();
 
-    
-      // filling TCA jetParticles: 
+
+      // filling TCA jetParticles:
       // loop over jetParticles {
       //     loop over stackParticles{
-      //      if jetPart == stackPart => Fill TCA jetParticles 
+      //      if jetPart == stackPart => Fill TCA jetParticles
       //    }
       //  }
       Int_t nIterIn   = stack->GetNprimary();
       Int_t nIterOut  = jet->GetRefTracks()->GetEntriesFast();
       Int_t jetPartCounter = 0;
-    
+
       Int_t eInJet = 0;
       Int_t eMother = 999;
       Double_t radialMoment = 0.;
-      Double_t angularity = 0.;    
+      Double_t angularity = 0.;
       Double_t ptRelMax = -1.;
       TClonesArray secVertices("TVector3", 20);
       Int_t secVcounts[20] = {};
@@ -449,10 +452,10 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
               Double_t alfa = jet->MomentumVector()->Angle(eleP);
               Double_t ptRel = sin(alfa)*stackp->Pt();
               eJetAlfaH->Fill(alfa*180./TMath::Pi());
-              ptRelMax = max(ptRelMax, ptRel); 
+              ptRelMax = max(ptRelMax, ptRel);
               //cout<<"PtRel: "<<ptRel<<" alfa: "<<alfa*180./TMath::Pi()<<" sin(alfa): "<<sin(alfa)<<" jet->Pt(): "<<jet->Pt()<<" e->Pt(): "<<stackp->Pt()<<endl;
             }
-            jetPartCounter++; 
+            jetPartCounter++;
 
 
             if (stackp->GetPdgCode() != 22){ // exclude photons from sec vertex searches
@@ -460,8 +463,8 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
               if (v != TVector3(0.,0.,0.) && stackp->R() > 0.){
                 Int_t indexFound = -1;
                 for(int i=0; i<secVertices.GetEntries(); ++i) if( v == *((TVector3*)secVertices.At(i)) ) {
-                  indexFound = i; 
-                } 
+                  indexFound = i;
+                }
                 if (indexFound != -1) secVcounts[indexFound] += 1;
                 else{ new(secVertices[isecV]) TVector3(v); secVcounts[isecV] = 1; isecV++; }
               }
@@ -492,8 +495,8 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
         //vertex
         Double_t vx = abs(jetp->Xv());
-        Double_t vy = abs(jetp->Yv()); 
-        
+        Double_t vy = abs(jetp->Yv());
+
         Double_t Vx[1] = {vx};
         vrtxHsparse->Fill(Vx);
 
@@ -527,7 +530,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           SVrH->Fill(R);
           RsvMax = max(R, RsvMax);
           Nsv++;
-        }                                                                                                                                              
+        }
       }
 
       NsecVertices1H->Fill(NsecV[0]);
@@ -560,7 +563,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           //printf("\n %d.", iJetPart);
 
           TParticle* jetp = ((AliMCParticle*)jet->GetRefTracks()->At(iJetPart))->Particle();
-          //print_ancestors(jetp, stack);      
+          //print_ancestors(jetp, stack);
           TParticle* motherp = jetp;
 
           Int_t tagTrueFirstTmp = 0;
@@ -571,7 +574,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           motherp = jetp;
           while(kTRUE){
             motherp = stack->Particle(motherp->GetFirstMother());
-            if (motherp->GetFirstMother() == -1){ 
+            if (motherp->GetFirstMother() == -1){
                 //printf("\n\t true first: %s (%d)", motherp->GetName(), motherp->GetPdgCode());
                 if (abs(motherp->GetPdgCode()) == 4) tagTrueFirstC = 1;
                 if (abs(motherp->GetPdgCode()) == 5) tagTrueFirstB = 1;
@@ -590,8 +593,8 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
           motherp = jetp;
           while(kTRUE){
             motherp = stack->Particle(motherp->GetFirstMother());
-            if (abs(motherp->GetPdgCode()) < 7 || motherp->GetPdgCode() == 21){ 
-                //printf("\n\t true last: %s (%d)", motherp->GetName(), motherp->GetPdgCode());  
+            if (abs(motherp->GetPdgCode()) < 7 || motherp->GetPdgCode() == 21){
+                //printf("\n\t true last: %s (%d)", motherp->GetName(), motherp->GetPdgCode());
 
                 if (abs(motherp->GetPdgCode()) == 4) tagTrueLastC = 1;
                 if (abs(motherp->GetPdgCode()) == 5) tagTrueLastB = 1;
@@ -602,26 +605,26 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
                 break;
             }
-            if (motherp->GetFirstMother() == -1){ 
+            if (motherp->GetFirstMother() == -1){
                 //printf("\n\t true last (end): %s (%d)", motherp->GetName(), motherp->GetPdgCode());
                 tagTrueLastTmp = -1;
                 break;
             }
           }
-          tagTrueLast = max(tagTrueLast, tagTrueLastTmp); 
-          
+          tagTrueLast = max(tagTrueLast, tagTrueLastTmp);
+
           // tag 3: exp
           motherp = jetp;
           while(kTRUE){
               motherp = stack->Particle(motherp->GetFirstMother());
               Int_t code = abs(motherp->GetPdgCode());
 
-              
+
               if (  ! TDatabasePDG::Instance()->GetParticle(code) ){  // segmentation for part. XXX(e.g. 4124, 14122)->Charm()
                   printf("\n\nW A R N I N G: XXX particle detected \n\n");
                   continue;
               }
-              //else{ cout<<"$ "<< TDatabasePDG::Instance()->GetParticle(code) <<endl;} 
+              //else{ cout<<"$ "<< TDatabasePDG::Instance()->GetParticle(code) <<endl;}
 
               Bool_t charm = (motherp->Charm() != 0  ||(code>400 && code<500));
               Bool_t beauty = (motherp->Beauty() != 0 || (code>500 && code<600));
@@ -637,13 +640,13 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
                 break;
               }
-              if (motherp->GetFirstMother() == -1){ 
-                //printf("\n\t EXP (end): light"); 
-                tagExpTmp = -1; 
+              if (motherp->GetFirstMother() == -1){
+                //printf("\n\t EXP (end): light");
+                tagExpTmp = -1;
                 break;
               }
           }
-          tagExp = max(tagExp, tagExpTmp); 
+          tagExp = max(tagExp, tagExpTmp);
 
           if (iJetPart+1 == jet->GetRefTracks()->GetEntriesFast()){
               // print report for jet      //made from particles printed so far, it's updated after every particle in jet
@@ -675,14 +678,14 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
       jetObserv.tagTrueFirstB = tagTrueFirstB;
       jetObserv.tagTrueLastB = tagTrueLastB;
       jetObserv.tagExpB = tagExpB;
-      
+
 
 
       if (iJet != 0) {
         // write eventParticles only once per event
-        // eventParticles are at once filled with all particles in event 
+        // eventParticles are at once filled with all particles in event
         // while we are now in jet loop
-        evParticles.Clear(); 
+        evParticles.Clear();
         evMCParticles.Clear();
       }
 
@@ -699,7 +702,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   } //event loop
 
 
-  // Finish 
+  // Finish
   treeFile->cd();
   //tree->Print();
   tree->Write();
@@ -710,7 +713,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
 
 //Create a canvas, set the view range, show histograms
 
-  TString* histFileName = new TString(pathToFile); 
+  TString* histFileName = new TString(pathToFile);
   *histFileName += "/histos.root";
 
   TFile* histFile = new TFile(histFileName->Data(),"RECREATE");
@@ -754,7 +757,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
     for (Int_t i_pt = 0; i_pt < pdgRange; ++i_pt){
         if (pt_pdgH[i_pt].GetEntries() < NentriesLimit) continue;
         N_part_types++;
-    //printf("\n not empty bin: >>>\t %d \t pdg: %d <=> name: %s \t\t\t NEntries: %f <<<", i_pt, i_pt-pdgRange/2, part_names[i_pt], pt_pdgH[i_pt].GetEntries());          
+    //printf("\n not empty bin: >>>\t %d \t pdg: %d <=> name: %s \t\t\t NEntries: %f <<<", i_pt, i_pt-pdgRange/2, part_names[i_pt], pt_pdgH[i_pt].GetEntries());
 
     }
     for(int i=1; i<pdgH->GetNbinsX(); ++i) if(pdgH->GetBinContent(i) > 0) cout<< "found: pdg="<<i-pdgRange/2<<", name="<<part_names[i]<<endl;
@@ -770,13 +773,13 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
     for (Int_t i_pt = 0; i_pt < pdgRange; ++i_pt){
       if (pt_pdgH[i_pt].GetEntries() < NentriesLimit) continue; //
       //printf("%c \n", part_names[i_pt][0]);
-      N_plt++; 
+      N_plt++;
 
       TH1F* pt_tmp = new TH1F("","", 150, 0, 15);
       *pt_tmp = pt_pdgH[i_pt];
       pt_tmp->SetTitle(part_names[i_pt]);
       c4->cd(N_plt);
-      pt_tmp->Draw();  
+      pt_tmp->Draw();
     }
     c4->Write();
 
@@ -835,7 +838,7 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   radMomH->Write();
   radMom_riH->Write();
   angularH->Write();
-    
+
   vrtxHsparse->Write();
   NsecVertices1H->Write();
   NsecVertices2H->Write();
@@ -856,10 +859,3 @@ void reconstruction(Int_t evNumber=200, const char* pathToFile="") {
   isPhysPrimFJH->Write();
 
 }
-
-
-
-
-
-
-
