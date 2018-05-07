@@ -21,3 +21,5 @@
 *.tmp
 
 INFO.*
+DATA/*
+collect-data/train/*
