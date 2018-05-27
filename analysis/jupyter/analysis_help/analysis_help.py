@@ -421,7 +421,7 @@ def prepare_dataset(paramtree,
 
 def unroll_df(paramtree,
             n_constit_sv = {'fConstituents':5, 'fSecondaryVertices':3},
-            sorting_vars = {'fConstituents':'fpT', 'fSecondaryVertices':'fLxy'},
+            sorting_vars = {'fConstituents':'fpT_max', 'fSecondaryVertices':'fLxy_max'},
             separate=True,
             verbose=True):
     """ Funtion rewriting columns filled with arrays into separate columns
@@ -438,6 +438,10 @@ def unroll_df(paramtree,
     n_constit_sv : dict default={'fConstituents':5, 'fSecondaryVertices':3}
         dictionary with numbers of jet's fConstituents and fSecondaryVertices
         to be considered
+    sorting_vars : dict default = {'fConstituents':'fpT_max', 'fSecondaryVertices':'fLxy_max'}
+        dictionary with sorting variables for each type and information
+        if increasing (min) or decreasing (max) sorting is to be performed and
+        therefore N smallest or N largest values are to be selected respectively
     separate : bool, default=True
         if should return only new columns + target column or
         previous dataframe + new columns - columns with arrays
@@ -456,24 +460,24 @@ def unroll_df(paramtree,
 
     df = paramtree.copy()
 
-    df['fConstituents_size'] = df.apply(lambda row: len(row['fConstituents.fVx']), axis=1)
-    df['fSecondaryVertices_size'] = df.apply(lambda row: len(row['fSecondaryVertices.fVx']), axis=1)
-
-    to_be_sorted = df['fConstituents.'+sorting_vars['fConstituents']].tolist()
-    df['fConstituents_indices'] = [np.argsort(row) for row in to_be_sorted]
-    to_be_sorted = df['fSecondaryVertices.'+sorting_vars['fSecondaryVertices']].tolist()
-    df['fSecondaryVertices_indices'] = [np.argsort(row) for row in to_be_sorted]
-
+    for constit_sv in ['fConstituents', 'fSecondaryVertices']:
+        df[constit_sv+'_size'] = df.apply(lambda row: len(row[constit_sv+'.fVx']), axis=1)
+        var, min_max = sorting_vars[constit_sv].split('_')
+        to_be_sorted = df[constit_sv+'.'+var].tolist()
+        if min_max == 'max':
+            df[constit_sv+'_indices'] = [np.argsort(row)[::-1] for row in to_be_sorted]  ### reversed !!!
+        elif min_max == 'min':
+            df[constit_sv+'_indices'] = [np.argsort(row)       for row in to_be_sorted]
 
     for col in df.columns:
-        for type in ['fConstituents', 'fSecondaryVertices']:
-            if type+'.' not in col: continue
-            if type not in n_constit_sv.keys(): n_constit_sv[type] = 0
-            n = n_constit_sv[type]
+        for constit_sv in ['fConstituents', 'fSecondaryVertices']:
+            if constit_sv+'.' not in col: continue
+            if constit_sv not in n_constit_sv.keys(): n_constit_sv[constit_sv] = 0
+            n = n_constit_sv[constit_sv]
             for i in range(n):
-                df[type+'-{}.{}'.format(i, col.split('.')[1])] = df.apply(lambda row: fill_value_or_zero(row, col, i), axis=1)
+                df[constit_sv+'-{}.{}'.format(i, col.split('.')[1])] = df.apply(lambda row: fill_value_or_zero(row, col, i), axis=1)
 
-    # keep fConstituents-NN.XX, fConstituents_size but drop fConstituents.XX
+    # keep fConstituents-NN.XX and fConstituents_size but drop fConstituents.XX
     df = df.drop([col for col in df.columns
             if 'fConstituents.' in col
             or 'fSecondaryVertices.' in col
