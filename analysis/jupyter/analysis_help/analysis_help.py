@@ -321,6 +321,7 @@ def prepare_dataset(paramtree,
                  test_size=None,
                  valid_size=None,
                  standarize_scales=True,
+                 shuffle=True,
                  verbose=True):
     """converts input DataFrame into (ready to be fed into algo) train/test datasets
     performing a couple of preprocessing steps
@@ -353,6 +354,9 @@ def prepare_dataset(paramtree,
         See: http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
     standarize_scales : bool, default=True
         if scaling using StandardScaler should be performed
+    shuffle : bool, default=True
+        if shuffling of light flavour jets should be performed
+        or simply first <demanded number> of jets should be selected
     verbose : bool, default=True
 
     Returns:
@@ -387,7 +391,8 @@ def prepare_dataset(paramtree,
     df_light = pdtree.loc[pdtree['target'] == light_target]
     # shuffle
     idx = df_light.index.tolist()
-    np.random.shuffle(idx)
+    if shuffle:
+        np.random.shuffle(idx)
     # light-to-heavy ratio
     idx = idx[:len(df_heavy)*light_heavy_ratio]
     df = pd.concat([df_light.loc[idx], df_heavy])
@@ -422,6 +427,7 @@ def prepare_dataset(paramtree,
 def unroll_df(paramtree,
             n_constit_sv = {'fConstituents':5, 'fSecondaryVertices':3},
             sorting_vars = {'fConstituents':'fpT_max', 'fSecondaryVertices':'fLxy_max'},
+            relative_eta_phi=True,
             separate=True,
             verbose=True):
     """ Funtion rewriting columns filled with arrays into separate columns
@@ -442,6 +448,8 @@ def unroll_df(paramtree,
         dictionary with sorting variables for each type and information
         if increasing (min) or decreasing (max) sorting is to be performed and
         therefore N smallest or N largest values are to be selected respectively
+    relative_eta_phi : bool, default=True
+        if eta and phi in constituents should be relative or absolute
     separate : bool, default=True
         if should return only new columns + target column or
         previous dataframe + new columns - columns with arrays
@@ -476,6 +484,11 @@ def unroll_df(paramtree,
             n = n_constit_sv[constit_sv]
             for i in range(n):
                 df[constit_sv+'-{}.{}'.format(i, col.split('.')[1])] = df.apply(lambda row: fill_value_or_zero(row, col, i), axis=1)
+
+    if relative_eta_phi:
+        for i in range(n_constit_sv['fConstituents']):
+            df['fConstituents-'+str(i)+'.fPhi'] = df['fConstituents-'+str(i)+'.fPhi'] - df['fPhi']
+            df['fConstituents-'+str(i)+'.fEta'] = df['fConstituents-'+str(i)+'.fEta'] - df['fEta']
 
     # keep fConstituents-NN.XX and fConstituents_size but drop fConstituents.XX
     df = df.drop([col for col in df.columns
