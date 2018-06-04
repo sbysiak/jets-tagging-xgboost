@@ -3,12 +3,13 @@ from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-# import seaborn as sns
+import seaborn as sns
 # import xgboost as xgb
 #
 # from sklearn.grid_search import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_curve, auc
 # from sklearn.metrics import accuracy_score, recall_score, precision_score, roc_curve, roc_auc_score, auc
 # from sklearn.metrics import make_scorer
 #
@@ -21,7 +22,7 @@ from sklearn.model_selection import train_test_split
 
 # %matplotlib inline
 
-import ROOT
+# import ROOT
 import root_numpy
 import root_pandas
 
@@ -509,6 +510,143 @@ def unroll_df(paramtree,
 # # # # # # # # # # # # # # # # # # # # # # # #
 # Plotting
 #
+
+def log_roc_plots(y, y_pred_proba, datasubset, experiment=None, close=True):
+    """ Function plotting ROC curve and optionally logging it to comet.ml
+
+        Parameters:
+        -----------
+        y : array_like of int
+            true labels
+        y_pred_proba : array_like of floats
+            score predicted by classifier, with sklearn: clf.predict_proba()
+        dataset : string
+            'train'/'valid'/'test' - used for naming plots
+        experiment : comet_ml.Experiment object or None, default=None
+            if None, plots will not be logged
+        close : boolean, default=True
+            if plt.close('all') should be executed at the end
+    """
+    fpr, tpr, _ = roc_curve(y, y_pred_proba)
+    roc_auc = auc(fpr, tpr)
+    plt.figure()
+    plt.plot(fpr, tpr, color='darkorange',
+             lw=2, label='ROC curve (area = {:.3f})'.format(roc_auc))
+    plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.legend(loc="lower right")
+    fig_name = 'ROC cuve - ' + datasubset.upper() + ' set'
+    plt.title(fig_name)
+    if experiment:
+        experiment.log_figure(figure_name=fig_name)
+
+    plt.figure()
+    plt.plot(tpr, fpr, color='darkorange',
+             lw=2, label='ROC curve (area = {:.3f})'.format(roc_auc))
+    plt.xlim([0.0, 1.0])
+    plt.xlabel('b-jet efficiency')
+    plt.ylabel('light mistagging efficiency')
+    plt.ylim([1e-5,1.05])
+    plt.semilogy()
+    plt.legend(loc="lower right")
+    fig_name = '(Mis)tagging efficiency - ' + datasubset.upper() + ' set'
+    plt.title(fig_name)
+    if experiment:
+        experiment.log_figure(figure_name=fig_name)
+
+    if close:
+        plt.close('all')
+
+
+
+def log_score_plot(y_train, y_pred_proba_train,
+                   y_test,  y_pred_proba_test,
+                   experiment=None):
+    """ Function plotting prediction score distributions,
+        one with linear and second with log yscale
+
+        Parameters:
+        -----------
+        y_train : array_like of int
+            true labels for training set
+        y_pred_proba_train : array_like of floats
+            score predicted by classifier for training set, with sklearn: clf.predict_proba()
+        y_test : array_like of int
+            true labels for testing set
+        y_pred_proba_test : array_like of floats
+            score predicted by classifier for testing set, with sklearn: clf.predict_proba()
+        experiment : comet_ml.Experiment object or None, default=None
+            if None, plots will not be logged
+    """
+
+    for yscale in ['linear', 'log']:
+        sns.distplot(np.array(y_pred_proba_train)[np.array(y_train) == 0],
+                     hist=0,
+                     kde_kws=dict(bw=0.05, color='r', alpha=1, linestyle=':', lw=2),
+                     bins=50, norm_hist=1, label='udsg, train');
+        sns.distplot(np.array(y_pred_proba_train)[np.array(y_train) == 1],
+                     hist=0,
+                     kde_kws=dict(bw=0.05, color='b', alpha=1, linestyle=':', lw=2),
+                     label='b, train');
+
+        sns.distplot(np.array(y_pred_proba_test)[np.array(y_test) == 0],
+                     hist=0,
+                     kde_kws=dict(bw=0.05, color='r', alpha=0.5, lw=2),
+                     bins=50, norm_hist=1, label='udsg, test');
+        sns.distplot(np.array(y_pred_proba_test)[np.array(y_test) == 1],
+                     hist=0,
+                     kde_kws=dict(bw=0.05, color='b', alpha=0.5, lw=2),
+                     label='udsg, test');
+
+        plt.xlim([-0.02,1.02]);
+        plt.xlabel('score')
+        plt.ylabel('probability density')
+
+        if yscale == 'log':
+            plt.ylim([1e-4,1e1])
+        plt.yscale(yscale)
+        fig_name = 'scores distr - ' + yscale
+        plt.title(fig_name)
+        if experiment:
+            experiment.log_figure(figure_name=fig_name)
+        plt.close('all')
+
+
+
+
+def log_b_eff(y, y_pred_proba,
+              experiment=None,
+              mistag_thresholds=[1e-4, 1e-3, 1e-2, 1e-1]):
+    """ Function logging b-jet efficiency levels (true positive rate) at specific
+        mistagging efficiencies of light jets (false positive rate)
+
+        Parameters:
+        -----------
+        y : array_like of int
+            true labels
+        y_pred_proba : array_like of floats
+            score predicted by classifier with sklearn: clf.predict_proba()
+        experiment : comet_ml.Experiment object or None, default=None
+            if None, plots will not be logged
+        mistag_thresholds : list of floats, default=[1e-4, 1e-3, 1e-2, 1e-1]
+            list of mistagging efficiencies
+            for which b-jet efficiencies should be logged
+    """
+    fpr, tpr, _ = roc_curve(y, y_pred_proba)
+    prev_fpri = fpr[0]
+    for fpri, tpri in zip(fpr, tpr):
+        for fpr_thresh in mistag_thresholds:
+            if prev_fpri < fpr_thresh and fpri > fpr_thresh:
+                print 'mistagging eff. = {} for b-jet eff. = {}'.format(fpr_thresh, tpri)
+                if experiment:
+                    experiment.log_parameter('bEff@mistagEff={}'.format(fpr_thresh), round(tpri,4))
+        prev_fpri = fpri
+
+
+
 
 def roc_uncert(y_pred_mat, y_test_mat, outname=None, make_plot=True, verbose=None):
     """ function plotting ROC curve with uncertainties for multiple trainings
