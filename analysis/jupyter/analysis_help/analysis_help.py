@@ -19,10 +19,11 @@ from sklearn.metrics import roc_curve, auc
 # from sklearn.tree import DecisionTreeClassifier
 # from sklearn.ensemble import RandomForestClassifier
 # from sklearn.naive_bayes import GaussianNB
+from keras.callbacks import Callback, TensorBoard
 
 # %matplotlib inline
 
-# import ROOT
+import ROOT
 import root_numpy
 import root_pandas
 
@@ -368,6 +369,7 @@ def prepare_dataset(paramtree,
     """
 
     pdtree = paramtree.copy()
+    pdtree.index = range(len(pdtree))  # for cases when paramtree is result of concactination
 
     len0 = len(pdtree)
     pdtree = pdtree.dropna()
@@ -502,9 +504,74 @@ def unroll_df(paramtree,
         print 'unroll_df: exec. time: {} sec'.format(time()-start)
 
     if separate:
-        return df[[col for col in df.columns if 'fConstituents' in col or 'fSecondaryVertices' in col or col == 'target']]
+        sv_cols = [c for c in df.columns if 'fSecondaryVertices' in c or 'fVertex' in c]
+        constit_cols = [c for c in df.columns if 'fConstituents' in c]
+        if  n_constit_sv['fSecondaryVertices'] > 0 and n_constit_sv['fConstituents'] > 0:
+            return df[sv_cols + constit_cols + ['target']]
+        elif n_constit_sv['fSecondaryVertices'] > 0:
+            return df[sv_cols +  ['target']]
+        elif  n_constit_sv['fConstituents'] > 0:
+            return df[constit_cols + ['target']]
     else:
         return df
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # #
+# KERAS callbacks
+#
+
+class StopHopeless(Callback):
+    """ stops training if after ``epoch_min`` specified metric has not reached
+    demanded level, either low or high, e.g.:
+        StopHopeless(metric_name='acc', mertric_limit_low=0.55)
+    but for loss it should be high limit:
+        StopHopeless(metric_name='loss', metric_limit_high=0.3)
+
+    """
+    def __init__(self, metric_limit_low=None, metric_limit_high=None, metric_name='acc', epoch_min=10):
+        self.epoch_min = epoch_min
+        self.metric_limit_low = metric_limit_low
+        self.metric_limit_high = metric_limit_high
+        self.metric_name = metric_name
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch >= self.epoch_min:
+            if self.metric_limit_low:
+                if logs.get(self.metric_name) < self.metric_limit_low:
+                    print 'stopping HOPELESS training!\n\tAfter {} epochs {}={}, \
+                           while low limit={}'.format(epoch, self.metric_name,
+                           logs.get(self.metric_name), self.metric_limit_low)
+                    self.model.stop_training = True
+            if self.metric_limit_high:
+                if logs.get(self.metric_name) > self.metric_limit_high:
+                    print 'stopping HOPELESS training!\n\tAfter {} epochs {}={},\
+                           while high limit={}'.format(epoch, self.metric_name,
+                           logs.get(self.metric_name), self.metric_limit_high)
+                    self.model.stop_training = True
+
+
+
+class StopMaxETA(Callback):
+    """stops training if ETA after ``epoch_min`` excesses ``max_ETA``,
+    checked after each epoch
+    """
+
+    def __init__(self, max_ETA=3600, epoch_min=5):
+        self.epoch_min = epoch_min
+        self.max_ETA = max_ETA
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch == 0:
+            self.start_time = time()
+        if epoch+1 > self.epoch_min:
+            time_so_far = time() - self.start_time
+            epochs_total = self.params['epochs']
+            ETA = time_so_far / (epoch+1-1) * epochs_total
+            if ETA > self.max_ETA:
+                print 'stopping training due to MaxETA!\n\tAfter {} epochs finished in {} sec, ETA={}, while maxETA={}'.format(epoch, time_so_far, ETA, self.max_ETA)
+                self.model.stop_training = True
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # #
