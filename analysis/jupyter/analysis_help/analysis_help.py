@@ -333,6 +333,8 @@ def read_jet_extractor(fnames=['../benchmark-dataset/DATA/trains/train_LHC17f8g_
 # Data processing
 #
 
+
+
 def prepare_dataset(paramtree,
                  light_heavy_ratio=1,
                  light_heavy_targets=[0,5],
@@ -342,6 +344,7 @@ def prepare_dataset(paramtree,
                  valid_size=None,
                  standarize_scales=True,
                  shuffle=True,
+                 return_flavours=False,
                  verbose=True):
     """converts input DataFrame into (ready to be fed into algo) train/test datasets
     performing a couple of preprocessing steps
@@ -377,6 +380,8 @@ def prepare_dataset(paramtree,
     shuffle : bool, default=True
         if shuffling of light flavour jets should be performed
         or simply first <demanded number> of jets should be selected
+    return_flavours : bool, default=False
+        if flvours should be returned as 3rd array for each datasubset: train/test/val
     verbose : bool, default=True
 
     Returns:
@@ -384,7 +389,13 @@ def prepare_dataset(paramtree,
         (X_train, y_train, X_test, y_test, X_val, y_val) : numpy arrays
         self-explanatory datasets,
         X_val, y_val can be empty lists if only first split (to train/test) was performed
+
+        (X_train, y_train, F_train, X_test, y_test, F_test, X_val, y_val, F_val) : numpy arrays
+        if ``return_flavours`` is True then also 3rd arrays is returned (F_xxx),
+        which contain true flavours or jets (from 'flavour' column in ``paramtree``)
     """
+
+
 
     pdtree = paramtree.copy()
     pdtree.index = range(len(pdtree))  # for cases when paramtree is result of concactination
@@ -422,7 +433,13 @@ def prepare_dataset(paramtree,
     y = df['target']
     X = df.drop([c for c in df.columns if 'tag' in c], axis=1)
     X = X.drop(['target'], axis=1)
-    if 'flavour' in X.columns: X = X.drop(['flavour'], axis=1)
+    if return_flavours:
+        if 'flavour' in X.columns:
+            flavours = X['flavour']
+            X = X.drop(['flavour'], axis=1)
+        else:
+            print '\nWARNING: \"flavour\" column absent in DataFrame passed\n'
+            return_flavours = False
 
     # map light vs heavy
     y = y.map(lambda y: 0 if y == light_target else 1)
@@ -434,16 +451,28 @@ def prepare_dataset(paramtree,
         scaler.fit(X)
         X = scaler.transform(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_size, test_size=test_size, stratify=y)
-    if valid_size: X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=valid_size, stratify=y_train)
+    seed = np.random.randint(99999)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_size, test_size=test_size, stratify=y, random_state=seed)
+    if valid_size: X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=valid_size, stratify=y_train, random_state=seed)
     else: X_val, y_val = [],[]
+
+    if return_flavours:
+        F_train, F_test, y_train, y_test = train_test_split(flavours, y, train_size=train_size, test_size=test_size, stratify=y, random_state=seed)
+        if valid_size: F_train, F_val, y_train, y_val = train_test_split(F_train, y_train, test_size=valid_size, stratify=y_train, random_state=seed)
+        else: F_val, y_val = [],[]
 
     if verbose:
         print 'no. jets selected (light/heavy) \t train: {}/{}, val: {}/{}, test: {}/{}'.format(
                                                 len(y_train)-sum(y_train), sum(y_train),
                                                 len(y_val)-sum(y_val), sum(y_val),
                                                 len(y_test)-sum(y_test), sum(y_test))
-    return (X_train, y_train, X_test, y_test, X_val, y_val)
+    if return_flavours:
+        return (X_train, y_train, F_train, X_test, y_test, F_test, X_val, y_val, F_val)
+    else:
+        return (X_train, y_train, X_test, y_test, X_val, y_val)
+
+
 
 
 
@@ -527,11 +556,11 @@ def unroll_df(paramtree,
         sv_cols = [c for c in df.columns if 'fSecondaryVertices' in c or 'fVertex' in c]
         constit_cols = [c for c in df.columns if 'fConstituents' in c]
         if  n_constit_sv['fSecondaryVertices'] > 0 and n_constit_sv['fConstituents'] > 0:
-            return df[sv_cols + constit_cols + ['target']]
+            return df[sv_cols + constit_cols + ['target', 'flavour']]
         elif n_constit_sv['fSecondaryVertices'] > 0:
-            return df[sv_cols +  ['target']]
+            return df[sv_cols +  ['target', 'flavour']]
         elif  n_constit_sv['fConstituents'] > 0:
-            return df[constit_cols + ['target']]
+            return df[constit_cols + ['target', 'flavour']]
     else:
         return df
 
@@ -636,6 +665,78 @@ def log_roc_plots(y, y_pred_proba, datasubset, experiment=None, close=True):
     plt.xlim([0.0, 1.0])
     plt.xlabel('b-jet efficiency')
     plt.ylabel('light mistagging efficiency')
+    plt.ylim([1e-5,1.05])
+    plt.semilogy()
+    plt.legend(loc="lower right")
+    fig_name = '(Mis)tagging efficiency - ' + datasubset.upper() + ' set'
+    plt.title(fig_name)
+    if experiment:
+        experiment.log_figure(figure_name=fig_name)
+
+    if close:
+        plt.close('all')
+
+
+
+def log_roc_plots_flavours(y, y_pred_proba, f, datasubset, experiment=None, close=True):
+    """ Function plotting ROC curve and optionally logging it to comet.ml
+    similar to log_roc_plots but plotting separate lines for each flavour
+
+        Parameters:
+        -----------
+        y : array_like of int
+            true labels
+        y_pred_proba : array_like of floats
+            score predicted by classifier, with sklearn: clf.predict_proba()
+        f : array_like of int
+            true flavours
+        dataset : string
+            'train'/'valid'/'test' - used for naming plots
+        experiment : comet_ml.Experiment object or None, default=None
+            if None, plots will not be logged
+        close : boolean, default=True
+            if plt.close('all') should be executed at the end
+    """
+
+    y_c, y_l, y_pred_proba_c, y_pred_proba_l = [],[],[],[]
+    for y_i, y_pred_proba_i, f_i in zip(y, y_pred_proba, f):
+        f_i = int(f_i)
+        if f_i == 5 or f_i == 4:
+            y_c.append(y_i)
+            y_pred_proba_c.append(y_pred_proba_i)
+        if f_i == 5 or f_i == 0:
+            y_l.append(y_i)
+            y_pred_proba_l.append(y_pred_proba_i)
+
+
+    plt.figure()
+    fpr_c, tpr_c, _ = roc_curve(y_c, y_pred_proba_c)
+    fpr_l, tpr_l, _ = roc_curve(y_l, y_pred_proba_l)
+    roc_auc_c = auc(fpr_c, tpr_c)
+    roc_auc_l = auc(fpr_l, tpr_l)
+    plt.plot(fpr_c, tpr_c, color='black',
+             lw=2, label='b vs c ROC curve (area = {:.3f})'.format(roc_auc_c))
+    plt.plot(fpr_l, tpr_l, color='blue',
+             lw=2, label='b vs light ROC curve (area = {:.3f})'.format(roc_auc_l))
+    plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.legend(loc="lower right")
+    fig_name = 'ROC cuve - ' + datasubset.upper() + ' set - flavours'
+    plt.title(fig_name)
+    if experiment:
+        experiment.log_figure(figure_name=fig_name)
+
+    plt.figure()
+    plt.plot(tpr_c, fpr_c, color='black',
+             lw=2, label='b vs c ROC curve (area = {:.3f})'.format(roc_auc_c))
+    plt.plot(tpr_l, fpr_l, color='blue',
+             lw=2, label='b vs light ROC curve (area = {:.3f})'.format(roc_auc_l))
+    plt.xlim([0.0, 1.0])
+    plt.xlabel('b-jet efficiency')
+    plt.ylabel('c/light mistagging efficiency')
     plt.ylim([1e-5,1.05])
     plt.semilogy()
     plt.legend(loc="lower right")
