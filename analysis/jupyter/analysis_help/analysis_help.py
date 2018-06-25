@@ -19,13 +19,27 @@ from sklearn.metrics import roc_curve, auc
 # from sklearn.tree import DecisionTreeClassifier
 # from sklearn.ensemble import RandomForestClassifier
 # from sklearn.naive_bayes import GaussianNB
+
+import keras as K
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Conv1D, MaxPooling1D
+from keras.utils import np_utils
+from keras.datasets import mnist
+from keras import optimizers
 from keras.callbacks import Callback, TensorBoard
+from keras.wrappers.scikit_learn import KerasClassifier
 
-# %matplotlib inline
 
-import ROOT
-import root_numpy
-import root_pandas
+
+# for sake of google.colab
+try:
+    import ROOT
+    import root_numpy
+    import root_pandas
+except:
+    print 'ROOT, root_numpy, root_pandas has NOT been imported'
 
 import os
 import os.path
@@ -534,8 +548,11 @@ def unroll_df(paramtree,
             if constit_sv+'.' not in col: continue
             if constit_sv not in n_constit_sv.keys(): n_constit_sv[constit_sv] = 0
             n = n_constit_sv[constit_sv]
+            if verbose: print col,':\t'
             for i in range(n):
+                if verbose: print i,
                 df[constit_sv+'-{}.{}'.format(i, col.split('.')[1])] = df.apply(lambda row: fill_value_or_zero(row, col, i), axis=1)
+            if verbose: print
 
     if relative_eta_phi:
         for i in range(n_constit_sv['fConstituents']):
@@ -620,6 +637,208 @@ class StopMaxETA(Callback):
             if ETA > self.max_ETA:
                 print 'stopping training due to MaxETA!\n\tAfter {} epochs finished in {} sec, ETA={}, while maxETA={}'.format(epoch, time_so_far, ETA, self.max_ETA)
                 self.model.stop_training = True
+
+
+class LogPerEpoch(Callback):
+    """logs metrics per epoch instead of standard in comet.ml: per batch"""
+
+    def __init__(self, experiment, metrics=None):
+        self.experiment = experiment
+        self.metrics = metrics
+
+    def on_epoch_end(self, epoch, logs={}):
+        if self.metrics:
+            for m in self.metrics:
+                self.experiment.log_metric(m+'_per_epoch', logs.get(m),  step=epoch+1)
+        else:
+            for m in logs.keys():
+                self.experiment.log_metric(m+'_per_epoch', logs.get(m),  step=epoch+1)
+
+
+# # # # # # # # # # # # # # # # # # # # # # # #
+# KERAS models
+#
+
+def create_model_FC(activation='relu', dropout=0.0, neurons_layers='2x64', input_shape=1,
+                 batch_size=64, lr=0.01, optimizer='Nadam',
+                 return_descr=False, use_as_subnet=False):
+    # for 1-layer nets dropout is not used !!!
+    model = Sequential()
+    if 'x' in neurons_layers:
+        n_layers, n_hidden = [int(n) for n in neurons_layers.split('x')]
+        model.add(Dense(n_hidden, activation=activation, input_shape=input_shape))
+        for neurons in range(n_layers-1):
+            # add dropout before, not after dense layer,
+            # as there should be no dropout between two last layers
+            model.add(Dropout(dropout))
+            model.add(Dense(n_hidden, activation=activation))
+
+        if use_as_subnet:
+            return model
+        model.add(Dense(2, activation='softmax'))
+    else:
+        hidden_lst = [int(h) for h in neurons_layers.split('-')]
+        model.add(Dense(hidden_lst[0], activation=activation, input_shape=input_shape))
+        for n_hidden in hidden_lst[1:]:
+            # add dropout before, not after dense layer,
+            # as there should be no dropout between two last layers
+            model.add(Dropout(dropout))
+            model.add(Dense(n_hidden, activation=activation))
+
+        if use_as_subnet:
+            return model
+        model.add(Dense(2, activation='softmax'))
+
+    if   optimizer == 'SGD': opt = optimizers.SGD(lr=lr)
+    elif optimizer == 'Adam': opt = optimizers.Adam(lr=lr)
+    elif optimizer == 'Nadam': opt = optimizers.Nadam(lr=lr)
+    else: opt = optimizer  # accept also optimizer objects
+    model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
+
+    model_descr = 'struct=FC:{struct}_lr={lr}_dropout={dropout}__opt={opt}_act={act}_batchsize={batch_size}'.format(
+                                                                     struct=neurons_layers,
+                                                                     opt=str(opt.__class__.__name__),
+                                                                     lr=lr,
+                                                                     act=activation,
+                                                                     dropout=dropout,
+                                                                     batch_size=batch_size)
+    print model_descr
+    if return_descr:
+        return model, model_descr
+    else:
+        return model
+
+
+def create_model_conv(n_conv_layers=2, n_filters_first=128, n_filters_change='down',
+                      kernel_size=2, pool_size=2, strides=1,
+                      n_fc_layers=4, n_fc_units=64,
+                      activation='relu', dropout_fc=0.0, dropout_conv=0.0,
+                      input_shape=1, batch_size=64, lr=0.0003, optimizer='Nadam',
+                      return_descr=False, use_as_subnet=False):
+    ''' n_filters_change : string 'down' or 'up' or 'flat'
+            each next conv layer will have consecutively
+            2x less or 2x more or same number of filters
+        pool_size : int or None
+            if None then no MaxPooling layers will be used,
+            otherwise will be applied after each conv layer
+        use_as_subnet : bool, default=False
+            if True, then not compiled model without softmax layer is returned
+    '''
+    model = Sequential()
+    # Conv Layers
+    model.add( Conv1D(n_filters_first, kernel_size, strides=strides,  activation=activation, padding='same', input_shape=input_shape) )
+    if pool_size:
+        model.add( MaxPooling1D(pool_size=pool_size) )
+    n_filters_prev = n_filters_first
+    for i in range(n_conv_layers-1):
+
+        if dropout_conv > 1e-5:
+            model.add( Dropout(dropout_conv) )
+
+        if n_filters_change == 'flat':
+            n_filters = n_filters_prev
+            n_filters_prev = n_filters
+        elif n_filters_change == 'down':
+            n_filters = int(n_filters_prev/2)
+            n_filters_prev = n_filters
+        elif n_filters_change == 'up':
+            n_filters = int(n_filters_prev*2)
+            n_filters_prev = n_filters
+        model.add( Conv1D(n_filters, kernel_size, strides=strides,  activation=activation, padding='same') )
+        if pool_size:
+            model.add( MaxPooling1D(pool_size=pool_size) )
+
+
+    model.add( Flatten() )
+
+    # Fully-Connected Layers
+    for i in range(n_fc_layers):
+        if dropout_fc > 1e-5:
+            model.add( Dropout(dropout_fc) )
+        model.add( Dense(n_fc_units, activation=activation) )
+
+    if use_as_subnet:
+        return model
+
+
+    model.add(Dense(2, activation='softmax'))
+
+    if   optimizer == 'SGD': opt = optimizers.SGD(lr=lr)
+    elif optimizer == 'Adam': opt = optimizers.Adam(lr=lr)
+    elif optimizer == 'Nadam': opt = optimizers.Nadam(lr=lr)
+    else: opt = optimizer  # accept also optimizer objects
+    model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
+
+    index_flatten = ['Flatten' in str(l) for l in model.layers].index(True)
+    strides_str = '' if strides == 1  else 's='+str(strides)
+    kernel_str = '' if kernel_size == 2 else 'k='+str(kernel_size)
+    kernel_strides_str = '' if not strides_str and not kernel_str else '({},{})'.format(kernel_str, strides_str)
+    pool_str = '' if pool_size == 2 else '(p={})'.format(pool_size)
+    structure = '{conv_maxpool}x{n_conv}[{shape_first}->{shape_last}]+Dense({n_fc_units})x{n_fc_layers}'.format(
+                        conv_maxpool='(Conv1D{}+MaxPool{})'.format(kernel_strides_str, pool_str) if pool_size else 'Conv1D'+kernel_strides_str,
+                        n_conv=n_conv_layers,
+                        shape_first=model.layers[0].output_shape[1:],
+                        shape_last=model.layers[index_flatten].input_shape[1:],
+                        n_fc_units=n_fc_units,
+                        n_fc_layers=n_fc_layers)
+    model_descr = 'struct={struct}_lr={lr}_dropouts=({dropout_conv},{dropout_fc})'.format(
+                                                                     struct=structure,
+                                                                     lr=lr,
+                                                                     dropout_conv=dropout_conv,
+                                                                     dropout_fc=dropout_fc)
+    print model_descr
+    if return_descr:
+        return model, model_descr
+    else:
+        return model
+
+
+
+def create_model_conv_set(n_fc_layers=2, n_fc_units=64,
+                 activation='relu', dropout_conv=0.0, dropout_fc=0.0, input_size=1,
+                 batch_size=64, lr=0.0003, optimizer='Nadam',
+                 return_descr=False, use_as_subnet=False):
+    model = Sequential()
+    model.add(Conv1D(128, 4, activation=activation, input_shape=input_size))
+    model.add(MaxPooling1D(pool_size=4))
+    model.add(Dropout(dropout_conv))
+    model.add(Conv1D(64, 2, activation=activation))
+    model.add(Dropout(dropout_conv))
+    model.add(Conv1D(32, 2, activation=activation))
+    model.add(MaxPooling1D(pool_size=2))
+
+    model.add(Flatten())
+
+    for _ in range(n_fc_layers):
+        # add dropout before, not after dense layer,
+        # as there should be no dropout between two last layers
+        model.add(Dropout(dropout_fc))
+        model.add(Dense(n_fc_units, activation=activation))
+
+    if use_as_subnet:
+        return model
+
+    model.add(Dense(2, activation='softmax'))
+
+    if   optimizer == 'SGD': opt = optimizers.SGD(lr=lr)
+    elif optimizer == 'Adam': opt = optimizers.Adam(lr=lr)
+    elif optimizer == 'Nadam': opt = optimizers.Nadam(lr=lr)
+    else: opt = optimizer  # accept also optimizer objects
+    model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
+
+    model_descr = 'struct={struct}_lr={lr}_dropouts=({dropout_conv},{dropout_fc})'.format(
+                                                                     struct='~haake+FC:{}x{}'.format(n_fc_layers, n_fc_units),
+                                                                     lr=lr,
+                                                                     dropout_conv=dropout_conv,
+                                                                     dropout_fc=dropout_fc)
+    print model_descr
+    if return_descr:
+        return model, model_descr
+    else:
+        return model
+
+
+
 
 
 
@@ -794,7 +1013,7 @@ def log_score_plot(y_train, y_pred_proba_train,
         plt.ylabel('probability density')
 
         if yscale == 'log':
-            plt.ylim([1e-4,1e1])
+            plt.ylim([1e-4,1e2])
         plt.yscale(yscale)
         fig_name = 'scores distr - ' + yscale
         plt.title(fig_name)
